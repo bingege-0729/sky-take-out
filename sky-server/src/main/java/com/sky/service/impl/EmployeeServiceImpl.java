@@ -1,17 +1,28 @@
 package com.sky.service.impl;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
+import com.sky.constant.PasswordConstant;
 import com.sky.constant.StatusConstant;
+import com.sky.context.BaseContext;
+import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
+import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
 import com.sky.exception.AccountLockedException;
 import com.sky.exception.AccountNotFoundException;
 import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.EmployeeMapper;
+import com.sky.result.PageResult;
 import com.sky.service.EmployeeService;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class EmployeeServiceImpl implements EmployeeService {
@@ -40,6 +51,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 
         //密码比对
         // TODO 后期需要进行md5加密，然后再进行比对
+        //对前端传输来的密码进行md5加密处理
+       password=DigestUtils.md5DigestAsHex(password.getBytes());
         if (!password.equals(employee.getPassword())) {
             //密码错误
             throw new PasswordErrorException(MessageConstant.PASSWORD_ERROR);
@@ -54,4 +67,57 @@ public class EmployeeServiceImpl implements EmployeeService {
         return employee;
     }
 
+//   新增员工
+    public void save(EmployeeDTO employeeDTO) {
+        System.out.println("当前的线程"+Thread.currentThread().getId());
+        Employee employee=new Employee();
+        //使用employeeDTO对象对employee对象进行属性拷贝,而不用一一赋值
+        //对象属性拷贝            //前面是数据源，后面是目标对象,前提属性名一致
+        BeanUtils.copyProperties(employeeDTO,employee);
+
+        //设置账号状态,默认正常,1表示启用，0表示禁用,一般不直接写1这种硬变量，而是定义常量，如果想改只需要点击statusconstant做修改
+        employee.setStatus(StatusConstant.ENABLE);
+
+        //设置初始密码123456，需要进行md5加密处理            //直接调用PasswordConstant.DEFAULT_PASSWORD
+        employee.setPassword(DigestUtils.md5DigestAsHex(PasswordConstant.DEFAULT_PASSWORD.getBytes()));//要变成md5加密，数组
+
+        //设置当前记录时间
+        employee.setCreateTime(LocalDateTime.now());
+
+        employee.setUpdateTime(LocalDateTime.now());
+        //设置当前记录创建人的id和修改人Id
+        //
+
+        employee.setCreateUser(BaseContext.getCurrentId());
+        employee.setUpdateUser(BaseContext.getCurrentId());
+        employeeMapper.insert(employee);
+    }
+
+    //分页查询
+    //@parm employeePageQueryDTO
+    //@return
+    public PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO) {
+        //分页查询 pagehelper
+        PageHelper.startPage(employeePageQueryDTO.getPage(), employeePageQueryDTO.getPageSize());
+        Page<Employee> page=employeeMapper.pageQuery(employeePageQueryDTO);
+        long total=page.getTotal();
+        //获取分页查询结果
+        List<Employee> records=page.getResult();
+        return new PageResult(total,records);
+    }
+//启用禁用员工账号
+//    @parm status
+//    @parm id
+    public void startOrStop(Integer status, Long id) {
+//        构造实体对象
+//        Employee employee=new Employee();
+//        employee.setStatus(status);
+//        employee.setId(id);
+        Employee employee= Employee.builder()
+                .status(status)
+                .id(id)
+                .build();
+
+        employeeMapper.update(employee);
+    }
 }
