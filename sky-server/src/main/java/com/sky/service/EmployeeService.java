@@ -26,4 +26,12 @@ public interface EmployeeService {
 //    @parm status
 //    @parm id
     void startOrStop(Integer status, Long id);
+//根据id查询员工信息
+//@parm id
+//  @ return
+    Employee getById(Long id);
+
+
+    //编辑员工信息
+    void update(EmployeeDTO employeeDTO);
 }
